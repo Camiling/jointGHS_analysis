@@ -1,8 +1,8 @@
 rm(list=ls())
 source('utils.R')
 load("Monocytes/data/expression_data_monocytes_LYZ_region_FDR_5.RData")
-run_jointGHS = FALSE
-run_boot = TRUE
+run_jointGHS = TRUE
+run_boot = FALSE
 
 # Use jointGHS on data ---------------------------------------------------------
 
@@ -103,14 +103,79 @@ dev.off()
 
 # Plot networks ----------------------------------------------------------------
 
+# Simple plot
+
+nets = list()
+for(i in 1:length(thetas.est.mono)){
+  net = network::network(thetas.est.mono[[i]]!=0,directed=F)
+  nets[[i]] = GGally::ggnet2(net,node.size = 1, edge.size = 0.3,alpha=0.9,mode = "fruchtermanreingold",color = 'dodgerblue')+
+    ggplot2::ggtitle(condition.names[i]) + ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))
+}
+png("monocytes_net_fastGHS.png", width=1200, height =1200)
+gridExtra::grid.arrange(grobs=nets)
+dev.off()
+
+# Plot with individual edges marked
+
+unique.list = list()
+theta.joint.array = array(unlist(thetas.est.mono), dim=c(ncol(thetas.est.mono[[1]]),ncol(thetas.est.mono[[1]]),length(thetas.est.mono)))
+theta.joint.array = theta.joint.array!=0
+for(k in 1:length(thetas.est.mono)){
+  unique.list[[k]] = ifelse(theta.joint.array[,,k] !=0, 1, 0) # 1 means edge
+  unique.list[[k]][which((theta.joint.array[,,k] !=0 ) & (apply(theta.joint.array[,,-k],c(1,2),sum)==0))] = 2 # only present in network k
+  unique.list[[k]][which(apply(theta.joint.array[,,],c(1,2),sum)==length(theta.joint))] = 3 # present in all
+}
+nets = list()
+for(i in 1:length(thetas.est.mono)){
+  net = network::network(unique.list[[i]],directed=F, ignore.eval=F,names.eval='weights')
+  set.edge.attribute(net, "color", c("black", "grey75","red", "blue")[(net %e% "weights")+1])
+  nets[[i]] = GGally::ggnet2(net,node.size = 1, edge.size = 0.3,alpha=0.9,mode = "fruchtermanreingold",color = 'dodgerblue', edge.color = 'color')+
+    ggplot2::ggtitle(condition.names[i]) + ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))
+}
+png("monocytes_net_unique_fastGHS.png", width=1200, height =1200)
+gridExtra::grid.arrange(grobs=nets)
+dev.off()
+
+# Same layout for all?
+
+# Get layout for Unstim
+net = network::network(unique.list[[4]],directed=F, ignore.eval=F,names.eval='weights')
+x = sna::gplot.layout.fruchtermanreingold(net, NULL)
+
+nets = list()
+for(i in 1:length(thetas.est.mono)){
+  net = network::network(unique.list[[i]],directed=F, ignore.eval=F,names.eval='weights')
+  set.edge.attribute(net, "color", c("black", "grey75","red", "blue")[(net %e% "weights")+1])
+  net %v% "x" = x[, 1]
+  net %v% "y" = x[, 2]
+  nets[[i]] = GGally::ggnet2(net,node.size = 1, edge.size = 0.3,alpha=0.9,mode = c('x','y'),color = 'dodgerblue', edge.color = 'color')+
+    ggplot2::ggtitle(condition.names[i]) + ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))
+}
+
+png("monocytes_net_unique_samelayout_fastGHS.png", width=1200, height =1200)
+gridExtra::grid.arrange(grobs=nets)
+dev.off()
 
 
+
+# Circular plot
+
+nets = list()
+for(i in 1:length(thetas.est.mono)){
+  net = network::network(unique.list[[i]],directed=F, ignore.eval=F,names.eval='weights')
+  set.edge.attribute(net, "color", c("black", "grey75","red", "blue")[(net %e% "weights")+1])
+  nets[[i]] = GGally::ggnet2(net,node.size = 1, edge.size = 0.3,alpha=0.9,mode = "circle",color = 'dodgerblue', edge.color = 'color')+
+    ggplot2::ggtitle(condition.names[i]) + ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))
+}
+png("monocytes_net_circle_fastGHS.png", width=1200, height =1200)
+gridExtra::grid.arrange(grobs=nets)
+dev.off()
 
 
 # Investigate what is unique to the different networks -------------------------
 
 
-
+# TODO
 
 
 

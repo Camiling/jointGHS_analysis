@@ -3,6 +3,10 @@ library(fastGHS)
 library(foreach)
 library(tailoredGlasso)
 library(superheat)
+library(GGally)
+library(sna)
+library(gridExtra)
+library(ggplot2)
 
 # Find Matthews correlation coefficient for estimated graphs
 MCC = function(g,g.hat){
