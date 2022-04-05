@@ -32,6 +32,16 @@ dat.edges = data.frame(IFN =thetas.est.mono[[1]][upper.tri(thetas.est.mono[[1]])
 names(dat.edges) = c("IFN-gamma", 'LPS-2h', 'LPS-24h', 'Unstim')
 
 plot.upset = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_sets=F)
+plot.upset.wrapped = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_sets=F, wrap=T, 
+                   themes=upset_default_themes(text=element_text(size=15)))
+
+# With fractions instead (not including for now, as confusing...)
+#plot.upset.frac = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_sets=F, 
+#                        base_annotations=list(
+#                          # with manual aes specification:
+#                          'Intersection size'=intersection_size(text_mapping=aes(label=paste0(round(
+#                            !!get_size_mode('exclusive_intersection')/!!get_size_mode('inclusive_union') * 100
+#                          , 2), '%')))))
 
 
 # Add chromosome information
@@ -60,9 +70,15 @@ layout <- "
 BBBBBBBBBBBBBB
 "
 
-pdf("Monocytes/plots/intersection_jointGHS.pdf", 12, 10)
+pdf("Monocytes/plots/intersection_chromosome_jointGHS.pdf", 12, 10)
 plot.upset.chr/plot.upset + plot_layout(design = layout, heights = c(1.3,2))
 dev.off()
+
+pdf("Monocytes/plots/intersection_jointGHS.pdf", 14, 7)
+plot.upset.wrapped
+dev.off()
+
+
 
 # Compare intersection of single and joint estimates (at same sparsities) ---------------------------
 
@@ -90,7 +106,14 @@ plot.upset.single/plot.upset #+ plot_layout( heights = c(1,1.1))
 dev.off()
 
 
+# Also with the default order
+plot.upset.single = upset(dat.edges.single, names(dat.edges.single)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_sets=F, wrap=T, 
+                          themes=upset_default_themes(text=element_text(size=15)))
 
+pdf("Monocytes/plots/intersection_withsingle_orderbysize_jointGHS.pdf", 14, 10)
+(plot.upset.single+ggtitle('fastGHS')+ ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5)))/(plot.upset.wrapped+ 
+                        ggtitle('jointGHS')+ ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))) #+ plot_layout( heights = c(1,1.1))
+dev.off()
 
 
 # Same plot as first, but marked by whether it's controlled by a hotspot instead--------------------
@@ -167,6 +190,8 @@ BBBBBBBBBBBBBB
 pdf("Monocytes/plots/intersection_hotspotmarked_jointGHS.pdf", 12, 10)
 plot.upset.hotspot/plot.upset + plot_layout(design = layout, heights = c(1.3,2))
 dev.off()
+
+
 
 
 # Upset plot for common hubs ------------------------------------------------------
@@ -288,7 +313,7 @@ dat.hubs.neigh = data.frame(Neighbour = dists.factor,
 
 pdf("Monocytes/plots/hist_cisorder_hubs_jointGHS.pdf", 10, 12)
 ggplot(dat.hubs.neigh, aes(x=Condition, fill=Neighbour))+geom_bar(position='fill')+ guides(fill=guide_legend(title="Cis neighbour order"))+
-      scale_fill_manual(values=RColorBrewer::brewer.pal(3,'YlOrRd')[3:1])
+      scale_fill_manual(values=RColorBrewer::brewer.pal(3,'YlOrRd')[3:1])+ylab('Fraction of hubs')
 dev.off()
 
 # And then for ALL nodes:
@@ -304,38 +329,295 @@ dat.hubs.neigh = data.frame(Neighbour = dists.factor,
                                          rep("LPS-24h", p-2),rep("Unstim", p-2)))
 
 
-pdf("Monocytes/plots/hist_cisorder_all_jointGHS.pdf", 10, 12)
+pdf("Monocytes/plots/hist_cisorder_all_nodes_jointGHS.pdf", 10, 12)
 ggplot(dat.hubs.neigh, aes(x=Condition, fill=Neighbour))+geom_bar(position='fill')+ guides(fill=guide_legend(title="Cis neighbour order"))+
-  scale_fill_manual(values=RColorBrewer::brewer.pal(6,'YlOrRd')[6:1])
+  scale_fill_manual(values=RColorBrewer::brewer.pal(6,'YlOrRd')[6:1])+ylab('Fraction of genes')
 dev.off()
 
 
-# NOT DONE since we can't average over conditions.
-# Make upset plot, marked by the smallest distance to a cis gene among the two genes.
-#dat.edges = data.frame(IFN =thetas.est.mono[[1]][upper.tri(thetas.est.mono[[1]])]!=0, LPS2 =thetas.est.mono[[2]][upper.tri(thetas.est.mono[[2]])]!=0, 
-#                      LPS24 =thetas.est.mono[[3]][upper.tri(thetas.est.mono[[3]])]!=0, Unstim =thetas.est.mono[[4]][upper.tri(thetas.est.mono[[4]])]!=0)
-#names(dat.edges) = c("IFN-gamma", 'LPS-2h', 'LPS-24h', 'Unstim')
+# Histogram of edge status of all edges in each condition.
 
-#lyz.ind = which(genes_id=='LYZ')
-#yeats4.ind = which(genes_id=='YEATS4')
-#gg.ifn = igraph::graph.adjacency(thetas.est.mono[[1]]!=0, mode='undirected')
-#dists.lyz = igraph::distances(gg.ifn, to=lyz.ind) # Get distances
-#dists.y4 = igraph::distances(gg.ifn, to=yeats4.ind) # Get distances
-#dists.to.cis = apply(cbind(dists.lyz, dists.y4), 1, min)
-#dat.edges.neigh = dat.edges[,1:4]
+# For each edge, get smallest distance.
+edges.ifn = which(thetas.est.mono[[1]]!=0,arr.ind=T)
+edges.ifn =edges.ifn[which(edges.ifn[,1]-edges.ifn[,2]!=0),] # Not diag elements
+dist.pairs.ifn = matrix(dists.to.cis.ifn[edges.ifn], ncol=2, byrow=F)
+dist.edge.ifn = apply(dist.pairs.ifn,1,min)
+edges.lps2 = which(thetas.est.mono[[2]]!=0,arr.ind=T)
+edges.lps2 =edges.lps2[which(edges.lps2[,1]-edges.lps2[,2]!=0),] # Not diag elements
+dist.pairs.lps2 = matrix(dists.to.cis.lps2[edges.lps2], ncol=2, byrow=F)
+dist.edge.lps2 = apply(dist.pairs.lps2,1,min)
+edges.lps24 = which(thetas.est.mono[[3]]!=0,arr.ind=T)
+edges.lps24 =edges.lps24[which(edges.lps24[,1]-edges.lps24[,2]!=0),] # Not diag elements
+dist.pairs.lps24 = matrix(dists.to.cis.lps24[edges.lps24], ncol=2, byrow=F)
+dist.edge.lps24 = apply(dist.pairs.lps24,1,min)
+edges.unstim = which(thetas.est.mono[[4]]!=0,arr.ind=T)
+edges.unstim =edges.unstim[which(edges.unstim[,1]-edges.unstim[,2]!=0),] # Not diag elements
+dist.pairs.unstim = matrix(dists.to.cis.lps24[edges.lps24], ncol=2, byrow=F)
+dist.edge.unstim = apply(dist.pairs.unstim,1,min)
 
-# Add info on neighbours
-#dat.edges.neigh = rbind(dat.edges.neigh,dat.edges.neigh) # one row per gene
-#neigh.info.row = matrix(rep(dists.to.cis,p), nrow=p, byrow=T)
-#neigh.info.col = matrix(rep(dists.to.cis,p), nrow=p, byrow=F)
-#neigh.info.row.upper = neigh.info.row[upper.tri(neigh.info.row)]
-#neigh.info.col.upper = neigh.info.col[upper.tri(neigh.info.col)]
-#dat.edges.neigh$Neighbour = c(factor(chr.info.row.upper, levels=c(1,2,3,4,Inf)), factor(chr.info.col.upper, levels=c(1,2,3,4,Inf)))
+dist.edge.all = c(dist.edge.ifn, dist.edge.lps2, dist.edge.lps24,dist.edge.unstim)
+dist.edge.all[which(dist.edge.all==Inf)] = 7
+dist.edge.all = c('1st','2nd','3rd','4th', '5th', '6th', '7th', 'Not a neighbour')[dist.edge.all+1]
+dists.factor = factor(dist.edge.all,levels=c('1st','2nd','3rd','4th', '5th', '6th','7th','Not a neighbour'))
+
+dat.edge.all = data.frame(Neighbour = dists.factor,
+                            Condition= c(rep("IFN-gamma", length(dist.edge.ifn)),rep("LPS-2h", length(dist.edge.lps2)),
+                                         rep("LPS-24h", length(dist.edge.lps24)),rep("Unstim", length(dist.edge.unstim))))
+
+
+pdf("Monocytes/plots/hist_edges_cisorder_jointGHS.pdf", 10, 12)
+ggplot(dat.edge.all, aes(x=Condition, fill=Neighbour))+geom_bar(position='fill')+ guides(fill=guide_legend(title="Edge order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(8,'YlOrRd')[8:1])+ylab('Fraction of edges')
+dev.off()
+
+
+# Look at order of edges found to be shared among all in joint, but not in single  ------------------------------
+
+edge.all.joint = which(thetas.est.mono[[1]]!=0 & thetas.est.mono[[2]]!=0 &thetas.est.mono[[3]]!=0 &thetas.est.mono[[4]]!=0 & upper.tri(diag(p,p)) & 
+                         ((thetas.est.mono.single[[1]]!=0) + (thetas.est.mono.single[[2]]!=0) + (thetas.est.mono.single[[3]]!=0) + (thetas.est.mono.single[[4]]!=0))!=4, arr.ind=T)
+
+edge.all.single = which(thetas.est.mono.single[[1]]!=0 & thetas.est.mono.single[[2]]!=0 &thetas.est.mono.single[[3]]!=0 &thetas.est.mono.single[[4]]!=0 & upper.tri(diag(p,p)) & 
+                          ((thetas.est.mono[[1]]!=0) + (thetas.est.mono[[2]]!=0) + (thetas.est.mono[[3]]!=0) + (thetas.est.mono[[4]]!=0))!=4, arr.ind=T)
+
+edge.all.both = which(thetas.est.mono[[1]]!=0 & thetas.est.mono[[2]]!=0 &thetas.est.mono[[3]]!=0 &thetas.est.mono[[4]]!=0 & upper.tri(diag(p,p)) & 
+                      thetas.est.mono.single[[1]]!=0 & thetas.est.mono.single[[2]]!=0 & thetas.est.mono.single[[3]]!=0 &thetas.est.mono.single[[4]]!=0 , arr.ind=T)
+
+
+# Find distances for single network
+gg.ifn.single = igraph::graph.adjacency(thetas.est.mono.single[[1]]!=0, mode='undirected')
+dists.lyz.ifn.single = igraph::distances(gg.ifn.single, to=lyz.ind) # Get distances
+dists.y4.ifn.single = igraph::distances(gg.ifn.single, to=yeats4.ind) # Get distances
+gg.lps2.single = igraph::graph.adjacency(thetas.est.mono.single[[2]]!=0, mode='undirected')
+dists.lyz.lps2.single = igraph::distances(gg.lps2.single, to=lyz.ind) # Get distances
+dists.y4.lps2.single = igraph::distances(gg.lps2.single, to=yeats4.ind) # Get distances
+gg.lps24.single = igraph::graph.adjacency(thetas.est.mono.single[[3]]!=0, mode='undirected')
+dists.lyz.lps24.single = igraph::distances(gg.lps24.single, to=lyz.ind) # Get distances
+dists.y4.lps24.single = igraph::distances(gg.lps24.single, to=yeats4.ind) # Get distances
+gg.unstim.single = igraph::graph.adjacency(thetas.est.mono.single[[4]]!=0, mode='undirected')
+dists.lyz.unstim.single = igraph::distances(gg.unstim.single, to=lyz.ind) # Get distances
+dists.y4.unstim.single = igraph::distances(gg.unstim.single, to=yeats4.ind) # Get distances
+dists.to.cis.ifn.single = apply(cbind(dists.lyz.ifn.single, dists.y4.ifn.single), 1, min)
+dists.to.cis.lps2.single = apply(cbind(dists.lyz.lps2.single, dists.y4.lps2.single), 1, min)
+dists.to.cis.lps24.single = apply(cbind(dists.lyz.lps24.single, dists.y4.lps24.single), 1, min)
+dists.to.cis.unstim.single = apply(cbind(dists.lyz.unstim.single, dists.y4.unstim.single), 1, min)
+
+#  Find distance pair of each edge of interest
+
+dist.pairs.ifn = matrix(dists.to.cis.ifn[edge.all.joint], ncol=2, byrow=F)
+dist.edge.ifn = apply(dist.pairs.ifn,1,min)
+dist.pairs.lps2 = matrix(dists.to.cis.lps2[edge.all.joint], ncol=2, byrow=F)
+dist.edge.lps2 = apply(dist.pairs.lps2,1,min)
+dist.pairs.lps24 = matrix(dists.to.cis.lps24[edge.all.joint], ncol=2, byrow=F)
+dist.edge.lps24 = apply(dist.pairs.lps24,1,min)
+dist.pairs.unstim = matrix(dists.to.cis.unstim[edge.all.joint], ncol=2, byrow=F)
+dist.edge.unstim = apply(dist.pairs.unstim,1,min)
+
+dist.pairs.ifn.single = matrix(dists.to.cis.ifn.single[edge.all.single], ncol=2, byrow=F)
+dist.edge.ifn.single  = apply(dist.pairs.ifn.single ,1,min)
+dist.pairs.lps2.single  = matrix(dists.to.cis.lps2.single[edge.all.single], ncol=2, byrow=F)
+dist.edge.lps2.single  = apply(dist.pairs.lps2.single ,1,min)
+dist.pairs.lps24.single  = matrix(dists.to.cis.lps24.single[edge.all.single], ncol=2, byrow=F)
+dist.edge.lps24.single  = apply(dist.pairs.lps24.single ,1,min)
+dist.pairs.unstim.single  = matrix(dists.to.cis.unstim.single[edge.all.single], ncol=2, byrow=F)
+dist.edge.unstim.single  = apply(dist.pairs.unstim.single ,1,min)
+
+# Distance in joint, edges in both (not used, as need the same for single... too many cols)
+dist.pairs.ifn.joint.both = matrix(dists.to.cis.ifn[edge.all.both], ncol=2, byrow=F)
+dist.edge.ifn.joint.both = apply(dist.pairs.ifn.joint.both,1,min)
+dist.pairs.lps2.joint.both = matrix(dists.to.cis.lps2[edge.all.both], ncol=2, byrow=F)
+dist.edge.lps2.joint.both = apply(dist.pairs.lps2.joint.both,1,min)
+dist.pairs.lps24.joint.both = matrix(dists.to.cis.lps24[edge.all.both], ncol=2, byrow=F)
+dist.edge.lps24.joint.both = apply(dist.pairs.lps24.joint.both,1,min)
+dist.pairs.unstim.joint.both = matrix(dists.to.cis.unstim[edge.all.both], ncol=2, byrow=F)
+dist.edge.unstim.joint.both = apply(dist.pairs.unstim.joint.both,1,min)
 
 
 
+dist.edge.all = c(dist.edge.ifn, dist.edge.lps2, dist.edge.lps24,dist.edge.unstim)
+dist.edge.all = c('1st','2nd','3rd','4th','5th')[dist.edge.all+1]
+dists.factor = factor(dist.edge.all,levels=c('1st','2nd','3rd','4th','5th'))
+
+dat.edge.all = data.frame(Neighbour = dists.factor,
+                          Condition= c(rep("IFN-gamma", length(dist.edge.ifn)),rep("LPS-2h", length(dist.edge.lps2)),
+                                       rep("LPS-24h", length(dist.edge.lps24)),rep("Unstim", length(dist.edge.unstim))))
+
+dist.edge.all.single = c(dist.edge.ifn.single, dist.edge.lps2.single, dist.edge.lps24.single,dist.edge.unstim.single)
+dist.edge.all.single = c('1st','2nd','3rd','4th', '5th')[dist.edge.all.single+1]
+dists.factor.single = factor(dist.edge.all.single,levels=c('1st','2nd','3rd','4th', '5th'))
+
+dat.edge.all.single = data.frame(Neighbour = dists.factor.single,
+                          Condition= c(rep("IFN-gamma", length(dist.edge.ifn.single)),rep("LPS-2h", length(dist.edge.lps2.single)),
+                                       rep("LPS-24h", length(dist.edge.lps24.single)),rep("Unstim", length(dist.edge.unstim.single))))
+
+dat.edge.combined = rbind(dat.edge.all, dat.edge.all.single)
+dat.edge.combined$method = c(rep('jointGHS', nrow(dat.edge.all)),rep('fastGHS', nrow(dat.edge.all.single)))
+
+pdf("Monocytes/plots/hist_all_joint_vs_single_unique_common_edges_cisorder_jointGHS.pdf", 10, 12)
+ggplot(dat.edge.combined, aes(x=method, fill=Neighbour))+geom_bar(position='fill')+ guides(fill=guide_legend(title="Edge order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(5,'YlOrRd')[5:1])+facet_wrap(~ Condition)+ylab('Fraction of edges')+theme_bw()
+dev.off()
+
+pdf("Monocytes/plots/hist_count_all_joint_vs_single_unique_common_edges_cisorder_jointGHS.pdf", 10, 12)
+ggplot(dat.edge.combined, aes(x=method, fill=Neighbour))+geom_histogram(stat='count')+ guides(fill=guide_legend(title="Edge order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(5,'YlOrRd')[5:1])+facet_wrap(~ Condition)
+dev.off()
+
+# Save for plotting 
+save(dat.edge.combined, file='Monocytes/data/neigh_common_unique_singleVSjoint.RData')
+
+# Also ALL common edges status (not complement)
+
+edge.all.joint.all = which(thetas.est.mono[[1]]!=0 & thetas.est.mono[[2]]!=0 &thetas.est.mono[[3]]!=0 &thetas.est.mono[[4]]!=0 & upper.tri(diag(p,p)), arr.ind=T)
+
+edge.all.single.all = which(thetas.est.mono.single[[1]]!=0 & thetas.est.mono.single[[2]]!=0 &thetas.est.mono.single[[3]]!=0 &thetas.est.mono.single[[4]]!=0& upper.tri(diag(p,p)) , arr.ind=T)
+
+#  Find distance pair of each edge of interest
+
+dist.pairs.ifn.all = matrix(dists.to.cis.ifn[edge.all.joint.all], ncol=2, byrow=F)
+dist.edge.ifn.all = apply(dist.pairs.ifn.all,1,min)
+dist.pairs.lps2.all = matrix(dists.to.cis.lps2[edge.all.joint.all], ncol=2, byrow=F)
+dist.edge.lps2.all = apply(dist.pairs.lps2.all,1,min)
+dist.pairs.lps24.all = matrix(dists.to.cis.lps24[edge.all.joint.all], ncol=2, byrow=F)
+dist.edge.lps24.all = apply(dist.pairs.lps24.all,1,min)
+dist.pairs.unstim.all = matrix(dists.to.cis.unstim[edge.all.joint.all], ncol=2, byrow=F)
+dist.edge.unstim.all = apply(dist.pairs.unstim.all,1,min)
+
+dist.pairs.ifn.single.all = matrix(dists.to.cis.ifn.single[edge.all.single.all], ncol=2, byrow=F)
+dist.edge.ifn.single.all  = apply(dist.pairs.ifn.single.all,1,min)
+dist.pairs.lps2.single.all  = matrix(dists.to.cis.lps2.single[edge.all.single.all], ncol=2, byrow=F)
+dist.edge.lps2.single.all  = apply(dist.pairs.lps2.single.all,1,min)
+dist.pairs.lps24.single.all  = matrix(dists.to.cis.lps24.single[edge.all.single.all], ncol=2, byrow=F)
+dist.edge.lps24.single.all  = apply(dist.pairs.lps24.single.all,1,min)
+dist.pairs.unstim.single.all  = matrix(dists.to.cis.unstim.single[edge.all.single.all], ncol=2, byrow=F)
+dist.edge.unstim.single.all  = apply(dist.pairs.unstim.single.all,1,min)
 
 
+
+dist.edge.all.common = c(dist.edge.ifn.all, dist.edge.lps2.all, dist.edge.lps24.all,dist.edge.unstim.all)
+dist.edge.all.common[which(dist.edge.all.common==Inf)] = 6
+dist.edge.all.common = c('1st','2nd','3rd','4th','5th', '6th','Not a neighbour')[dist.edge.all.common+1]
+dists.factor.common = factor(dist.edge.all.common,levels=c('1st','2nd','3rd','4th','5th', '6th','Not a neighbour'))
+
+dat.edge.all.common = data.frame(Neighbour = dists.factor.common,
+                                 Condition= c(rep("IFN-gamma", length(dist.edge.ifn.all)),rep("LPS-2h", length(dist.edge.lps2.all)),
+                                              rep("LPS-24h", length(dist.edge.lps24.all)),rep("Unstim", length(dist.edge.unstim.all))))
+
+dist.edge.all.single.all = c(dist.edge.ifn.single.all, dist.edge.lps2.single.all, dist.edge.lps24.single.all,dist.edge.unstim.single.all)
+dist.edge.all.single.all[which(dist.edge.all.single.all==Inf)] = 6
+dist.edge.all.single.all = c('1st','2nd','3rd','4th', '5th', '6th','Not a neighbour')[dist.edge.all.single.all+1]
+dists.factor.single.all = factor(dist.edge.all.single.all,levels=c('1st','2nd','3rd','4th', '5th', '6th','Not a neighbour'))
+
+dat.edge.all.single.all = data.frame(Neighbour = dists.factor.single.all,
+                                     Condition= c(rep("IFN-gamma", length(dist.edge.ifn.single.all)),rep("LPS-2h", length(dist.edge.lps2.single.all)),
+                                                  rep("LPS-24h", length(dist.edge.lps24.single.all)),rep("Unstim", length(dist.edge.unstim.single.all))))
+
+dat.edge.combined.all = rbind(dat.edge.all.common, dat.edge.all.single.all)
+dat.edge.combined.all$method = c(rep('jointGHS', nrow(dat.edge.all.common)),rep('fastGHS', nrow(dat.edge.all.single.all)))
+
+pdf("Monocytes/plots/hist_all_joint_vs_single_all_common_edges_cisorder_jointGHS.pdf", 10, 12)
+ggplot(dat.edge.combined.all, aes(x=method, fill=Neighbour))+geom_bar(position='fill')+ guides(fill=guide_legend(title="Edge order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(7,'YlOrRd')[7:1])+facet_wrap(~ Condition)+ylab('Fraction of edges')+theme_bw()
+dev.off()
+
+pdf("Monocytes/plots/hist_count_all_joint_vs_single_all_common_edges_cisorder_jointGHS.pdf", 10, 12)
+ggplot(dat.edge.combined.all, aes(x=method, fill=Neighbour))+geom_histogram(stat='count')+ guides(fill=guide_legend(title="Edge order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(7,'YlOrRd')[7:1])+facet_wrap(~ Condition)
+dev.off()
+
+# Save for plotting 
+save(dat.edge.combined.all, file='Monocytes/data/neigh_common_all_singleVSjoint.RData')
+
+
+
+# Look at order of nodes and edges in joint VS single, ALL (different definition of order) -------------------------
+
+
+# Nodes in joint
+dists.to.cis.all = c(dists.to.cis.ifn, dists.to.cis.lps2, dists.to.cis.lps24, dists.to.cis.unstim)
+dists.to.cis.all = dists.to.cis.all[-which(dists.to.cis.all==0)]
+dists.to.cis.all[which(dists.to.cis.all==Inf)] = 6
+dists.to.cis.all = c('1st','2nd','3rd','4th', '5th', 'Not a neighbour')[dists.to.cis.all]
+dists.factor = factor(dists.to.cis.all,levels=c('1st','2nd','3rd','4th', '5th', 'Not a neighbour'))
+dat.nodes.joint = data.frame(Neighbour = dists.factor,
+                            Condition= c(rep("IFN-gamma", p-2),rep("LPS-2h", p-2),
+                                         rep("LPS-24h", p-2),rep("Unstim", p-2)))
+# Nodes in single
+dists.to.cis.all.single = c(dists.to.cis.ifn.single, dists.to.cis.lps2.single, dists.to.cis.lps24.single, dists.to.cis.unstim.single)
+dists.to.cis.all.single = dists.to.cis.all.single[-which(dists.to.cis.all.single==0)]
+dists.to.cis.all.single[which(dists.to.cis.all.single==Inf)] = 6
+dists.to.cis.all.single = c('1st','2nd','3rd','4th', '5th', 'Not a neighbour')[dists.to.cis.all.single]
+dists.factor.single = factor(dists.to.cis.all.single,levels=c('1st','2nd','3rd','4th', '5th', 'Not a neighbour'))
+dat.nodes.single = data.frame(Neighbour = dists.factor.single,
+                            Condition= c(rep("IFN-gamma", p-2),rep("LPS-2h", p-2),
+                                         rep("LPS-24h", p-2),rep("Unstim", p-2)))
+
+# Combined
+dat.nodes.combined = rbind(dat.nodes.joint,dat.nodes.single)
+dat.nodes.combined$method = c(rep('jointGHS', nrow(dat.nodes.joint)),rep('fastGHS', nrow(dat.nodes.single)))
+
+pdf("Monocytes/plots/hist_cisorder_all_nodes_single_vs_jointGHS.pdf", 10, 12)
+ggplot(dat.nodes.combined, aes(x=method, fill=Neighbour))+geom_histogram(stat='count')+ guides(fill=guide_legend(title="Cis neighbour order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(6,'YlOrRd')[6:1])+facet_wrap(~ Condition)
+dev.off()
+
+# Edges 
+
+# New def: if dist is zero, we have a cis-trans edge (one of the nodes is cis)!
+
+#  Find distance pair of each edge of interest
+dist.pairs.ifn = matrix(dists.to.cis.ifn[edges.ifn], ncol=2, byrow=F)
+dist.edge.ifn = apply(dist.pairs.ifn,1,min)
+dist.pairs.lps2 = matrix(dists.to.cis.lps2[edges.lps2], ncol=2, byrow=F)
+dist.edge.lps2 = apply(dist.pairs.lps2,1,min)
+dist.pairs.lps24 = matrix(dists.to.cis.lps24[edges.lps24], ncol=2, byrow=F)
+dist.edge.lps24 = apply(dist.pairs.lps24,1,min)
+dist.pairs.unstim = matrix(dists.to.cis.unstim[edges.unstim], ncol=2, byrow=F)
+dist.edge.unstim = apply(dist.pairs.unstim,1,min)
+
+edges.ifn.single = which(thetas.est.mono.single[[1]]!=0,arr.ind=T)
+edges.ifn.single=edges.ifn.single[which(edges.ifn.single[,1]-edges.ifn.single[,2]!=0),] # Not diag elements
+edges.lps2.single = which(thetas.est.mono.single[[2]]!=0,arr.ind=T)
+edges.lps2.single=edges.lps2.single[which(edges.lps2.single[,1]-edges.lps2.single[,2]!=0),] # Not diag elements
+edges.lps24.single = which(thetas.est.mono.single[[3]]!=0,arr.ind=T)
+edges.lps24.single=edges.lps24.single[which(edges.lps24.single[,1]-edges.lps24.single[,2]!=0),] # Not diag elements
+edges.unstim.single = which(thetas.est.mono.single[[4]]!=0,arr.ind=T)
+edges.lunstim.single=edges.unstim.single[which(edges.unstim.single[,1]-edges.unstim.single[,2]!=0),] # Not diag elements
+
+dist.pairs.ifn.single = matrix(dists.to.cis.ifn.single[edges.ifn.single], ncol=2, byrow=F)
+dist.edge.ifn.single  = apply(dist.pairs.ifn.single ,1,min)
+dist.pairs.lps2.single  = matrix(dists.to.cis.lps2.single[edges.lps2.single], ncol=2, byrow=F)
+dist.edge.lps2.single  = apply(dist.pairs.lps2.single ,1,min)
+dist.pairs.lps24.single  = matrix(dists.to.cis.lps24.single[edges.lps24.single], ncol=2, byrow=F)
+dist.edge.lps24.single  = apply(dist.pairs.lps24.single ,1,min)
+dist.pairs.unstim.single  = matrix(dists.to.cis.unstim.single[edges.unstim.single], ncol=2, byrow=F)
+dist.edge.unstim.single  = apply(dist.pairs.unstim.single ,1,min)
+
+dist.edge.all = c(dist.edge.ifn, dist.edge.lps2, dist.edge.lps24,dist.edge.unstim)
+dist.edge.all[which(dist.edge.all==Inf)]=6
+dist.edge.all = c('1st','2nd','3rd','4th', '5th', '6th', 'Not a neighbour')[dist.edge.all+1] # 0 dist now means 1st order
+dists.factor = factor(dist.edge.all,levels=c('1st','2nd','3rd','4th', '5th', '6th', 'Not a neighbour'))
+
+dat.edge.all = data.frame(Neighbour = dists.factor,
+                          Condition= c(rep("IFN-gamma", length(dist.edge.ifn)),rep("LPS-2h", length(dist.edge.lps2)),
+                                       rep("LPS-24h", length(dist.edge.lps24)),rep("Unstim", length(dist.edge.unstim))))
+
+dist.edge.all.single = c(dist.edge.ifn.single, dist.edge.lps2.single, dist.edge.lps24.single,dist.edge.unstim.single)
+dist.edge.all.single[which(dist.edge.all.single==Inf)]=6
+dist.edge.all.single = c('1st','2nd','3rd','4th', '5th', '6th', 'Not a neighbour')[dist.edge.all.single+1]
+dists.factor.single = factor(dist.edge.all.single,levels=c('1st','2nd','3rd','4th', '5th', '6th', 'Not a neighbour'))
+
+dat.edge.all.single = data.frame(Neighbour = dists.factor.single,
+                                 Condition= c(rep("IFN-gamma", length(dist.edge.ifn.single)),rep("LPS-2h", length(dist.edge.lps2.single)),
+                                              rep("LPS-24h", length(dist.edge.lps24.single)),rep("Unstim", length(dist.edge.unstim.single))))
+
+dat.edge.combined = rbind(dat.edge.all, dat.edge.all.single)
+dat.edge.combined$method = c(rep('jointGHS', nrow(dat.edge.all)),rep('fastGHS', nrow(dat.edge.all.single)))
+
+pdf("Monocytes/plots/hist_all_joint_vs_single_all_edges_cisorder_jointGHS.pdf", 10, 12)
+ggplot(dat.edge.combined, aes(x=method, fill=Neighbour))+geom_bar(position='fill')+ guides(fill=guide_legend(title="Edge order"))+
+  scale_fill_manual(values=RColorBrewer::brewer.pal(7,'YlOrRd')[7:1])+facet_wrap(~ Condition)+ylab('Fraction of edges')
+dev.off()
+ 
 
 
 # Evaluate significance of density of top hotspot mediated subnetworks ------------------------
@@ -542,3 +824,7 @@ df.mediated
 
 # In LPS-24h, all have more mediated neighbours. 
 
+
+# Save for pdf doc
+
+save(df.mediated, file='Monocytes/data/df_mediated_neigh.RData')

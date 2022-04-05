@@ -188,10 +188,18 @@ df.loglik = data.frame(loglikelihood = c(logliks.joint, logliks.single), method=
 
 pdf("Monocytes/plots/loglik_jointGHS.pdf")
 ggplot2::ggplot(df.loglik, aes(y=loglikelihood, x='', group=method))+geom_point(aes(color=method))+facet_wrap(~ condition, ncol=4)+
-  labs(y= "Loglikelihood", x = "")
+  labs(y= "Loglikelihood", x = "")+theme_bw()
 dev.off()
 
 df.loglik
+
+# Increase/difference scaled by size
+round((logliks.joint-logliks.single)/abs(logliks.single), 4)
+# Same as frational increase (subtracted from 1 bc it's negative)
+round(1-logliks.joint/logliks.single,4)
+
+round(100*(logliks.joint-logliks.single)/abs(logliks.single), 2)
+
 
 # Plot MCC of results -----------------------------------------------------------------
 
@@ -328,7 +336,7 @@ p.all <- ggplot2::ggplot(na.omit(df.all),  aes(y=theta,x=NuInv))+ labs(title=" "
   geom_point(aes(colour=graph, shape=graph)) + geom_hline(yintercept=0, linetype='dashed', color='darkgrey') + geom_vline(xintercept=0,linetype='dashed', color='darkgrey')           
 
 pdf('Monocytes/plots/monocytes_theta_vs_NuInv.pdf')
-p.all
+p.all+theme_bw()+ggplot2::theme(text = element_text(size = 15))
 dev.off()
 
 

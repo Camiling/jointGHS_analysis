@@ -8,7 +8,15 @@ output:
 
 # Data description
 
-Using a FDR threshold of $0.05$ for hotspot association, we get $p=381$ genes for each of the four conditions. We have $n_1=366$ samples for IFN-GAMMA, $n_2=260$ for LPS-2h, $n_3=321$ for LPS-24h, and $n_4=413$ for unstimulated cells.  
+Using a FDR threshold of $0.05$ for hotspot association, we get $p=381$ genes for each of the four conditions. We have $n_1=366$ samples for IFN-GAMMA, $n_2=260$ for LPS-2h, $n_3=321$ for LPS-24h, and $n_4=413$ for unstimulated cells. The number of genes in each condition mediated by the top hotspot were $294$, $88$, $16$ and $215$ respectively.
+
+# Resulting network description 
+
+The jointGHS network estimates had sparsities $0.18$, $0.20$, $0.21$ and $0.16$ for IFN-GAMMA, LPS-24, LPS-24h and unstimulated cells respectively. Their corresponding  chosen global shrinkage parameters were $8$ $6.4$, $9$ and $3$ respectively. 
+
+Compared to the single-network estimates of the same sparsity, the log likelihood is either increased or approximately the same for all conditions.
+
+![Log likelihood of jointGHS vs fastGHS networks](plots/loglik_jointGHS.pdf){width=60%}
 
 # Similarity of networks across conditions
 
@@ -49,9 +57,17 @@ It apprears that the degree distribution of the unstimulated network has more de
 
 ## Density plots of top hotspot-controlled genes
 
-The degree distribution of the genes controlled by the top hotspot clearly has the most mass on larger values in LPS-24h, implying more activity among these genes in this group.
+The degree distribution of the genes controlled by the top hotspot clearly has the most mass on larger values in LPS-24h, also when compared to the distribution in the joint network estimate, implying more activity among these genes in this group.
 
 ![Degree distributions density of genes controlled by the top hotspot in the jointGHS networks](plots/degreedistributions/degreedistr_density_onlyflagged_jointGHS.pdf){width=50%}
+
+
+## Density plots of single network version
+
+As we see, the single network estimates does not have nodes with degree larger than 25, compared to 40 for the joint estimate. Thus, the joint graphical horseshoe estimator identifies more high-degree hubs. 
+
+![Degree distributions density of fastGHS networks](plots/degreedistributions/degreedistr_density_single_jointGHS.pdf){width=50%}
+
 
 
 # Hubs
@@ -119,17 +135,63 @@ As we see from the intersection plot, the networks have a fair share of edges in
 ## Marked by hotspot contol
 
 
-![Intersection size of edges of different condition network combinations. Whether the corresponding hubs (genes) are controlled by the top hotspot is shown as well.](plots/intersection_hotspotmarked_jointGHS.pdf)
+![Intersection size of edges of different condition network combinations. Whether the corresponding hubs (genes) are controlled by the top hotspot in all conditions in the intersection is shown as well.](plots/intersection_hotspotmarked_jointGHS.pdf)
 
 ## Hubs
 
 ![Intersection size of the hubs of the different condition network combinations. Whether the corresponding hubs (genes) are controlled by the top hotspot within each condition in the intersection is shown as well.](plots/intersection_hubs_jointGHS.pdf)
 
+## joint vs single GHS
+
+Comparing to the single GHS networks, we see that the joint networks have more in common. This is as expected, that we with the joint method are able to identify what is common and borrow information. From the upset plots, we see that much individuality is captured as well. The log likelihood improvement supports that the estimates have improved compared to the single-network method. 
+
+![Intersection size of edges of different condition network combinations in single vs joint GHS.](plots/intersection_withsingle_jointGHS.pdf)
+
+
+# Order of neighbourhood to cis genes
+
+# Hubs
+
+![The order of the top hubs in each condition. By order, we mean the order of neighbourhood to either of the top hotspot mediated cis genes LYZ and YEATS4.](plots/hist_cisorder_hubs_jointGHS.pdf)
+
+
+# All genes
+
+We see that in the unstimulated group, more genes are further than three links from the cis genes compared to the other conditions. Many genes do not have any paths to the cis genes at all. 
+
+![The order of all genes in each condition. By order, we mean the order of neighbourhood to either of the top hotspot mediated cis genes LYZ and YEATS4.](plots/hist_cisorder_all_jointGHS.pdf)
+
+# Edges
+
+![The order of all edges in each condition. By order, we mean the number of links to either the top hotspot mediated cis genes LYZ and YEATS4.](plots/hist_edges_cisorder_jointGHS.pdf)
+
+
 # Common parameter estimates
 
-As we see, while many edges are found to be in common so that information is shared, there are still many network-specific eddges that have been captured. Thanks to the heavy horseshoe tail, we were able to capture these edges even though no common information about them was found between the conditions. 
+As we see, while many edges are found to be in common so that information is shared, there are still many network-specific edges that have been captured. Thanks to the heavy horseshoe tail, we were able to capture these edges even though no common information about them was found between the conditions. 
 
 ![Estimated precision matrix elements of each condition plotted against their common hyperparameter](plots/monocytes_theta_vs_NuInv.pdf)
+
+# Are the top hotspot mediated gene subnetworks denser?
+
+## Subnetworks of top hotspot mediated genes
+
+The subnetworks of the top hotspot mediated genes were found to be sigificantly denser than the overall networks in all conditions, with empirical p-values being $0.0001$ in all conditions except IFN-GAMMA, which had p-value $0.08$. 
+
+## Neighbour genes of cis genes
+
+We see that YEATS4 does not really have more mediated neighbours than the overall fraction, except in LPS-24h. CREB1 has more mediated neighbours in all conditions, and in fact *all* its neighbours are mediated in IFN-GAMMA and the unstimulated cells. LYZ also has more mediated neighbours in all conditions, though not very much more in IFN-GAMMA.
+
+In LPS-24h, all genes have more mediated neighbours. The number of top hotspot mediated genes is lower in this group.
+
+
+```{r, echo=FALSE, message=FALSE}
+library(knitr)
+load(file='data/df_mediated_neigh.RData')
+kable(df.mediated, caption='Fraction of neighbour genes of LYZ, YEATS4 and CREB1 that are mediated by the top hotspot, as well as the overall fraction, in different conditions')
+
+```
+
 
 
 # Enrichment analysis of hubs with enrichR

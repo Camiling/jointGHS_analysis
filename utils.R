@@ -9,6 +9,9 @@ library(gridExtra)
 library(ggplot2)
 library(ComplexUpset)
 library(patchwork)
+library(igraph)
+library(network)
+library(ggalluvial)
 
 # Find Matthews correlation coefficient for estimated graphs
 MCC = function(g,g.hat){
