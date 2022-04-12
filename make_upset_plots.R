@@ -373,6 +373,8 @@ dev.off()
 
 # Look at order of edges found to be shared among all in joint, but not in single  ------------------------------
 
+# Only considering upper tri to avoid counting edges double or counting diagonal
+
 edge.all.joint = which(thetas.est.mono[[1]]!=0 & thetas.est.mono[[2]]!=0 &thetas.est.mono[[3]]!=0 &thetas.est.mono[[4]]!=0 & upper.tri(diag(p,p)) & 
                          ((thetas.est.mono.single[[1]]!=0) + (thetas.est.mono.single[[2]]!=0) + (thetas.est.mono.single[[3]]!=0) + (thetas.est.mono.single[[4]]!=0))!=4, arr.ind=T)
 
@@ -421,7 +423,7 @@ dist.edge.lps24.single  = apply(dist.pairs.lps24.single ,1,min)
 dist.pairs.unstim.single  = matrix(dists.to.cis.unstim.single[edge.all.single], ncol=2, byrow=F)
 dist.edge.unstim.single  = apply(dist.pairs.unstim.single ,1,min)
 
-# Distance in joint, edges in both (not used, as need the same for single... too many cols)
+# Distance in joint, edges in both (not used in the upset plots, as need the same for single... too many cols in plot)
 dist.pairs.ifn.joint.both = matrix(dists.to.cis.ifn[edge.all.both], ncol=2, byrow=F)
 dist.edge.ifn.joint.both = apply(dist.pairs.ifn.joint.both,1,min)
 dist.pairs.lps2.joint.both = matrix(dists.to.cis.lps2[edge.all.both], ncol=2, byrow=F)
@@ -431,7 +433,15 @@ dist.edge.lps24.joint.both = apply(dist.pairs.lps24.joint.both,1,min)
 dist.pairs.unstim.joint.both = matrix(dists.to.cis.unstim[edge.all.both], ncol=2, byrow=F)
 dist.edge.unstim.joint.both = apply(dist.pairs.unstim.joint.both,1,min)
 
-
+# Distance in single, edges in both
+dist.pairs.ifn.single.both = matrix(dists.to.cis.ifn.single[edge.all.both], ncol=2, byrow=F)
+dist.edge.ifn.single.both = apply(dist.pairs.ifn.single.both,1,min)
+dist.pairs.lps2.single.both = matrix(dists.to.cis.lps2.single[edge.all.both], ncol=2, byrow=F)
+dist.edge.lps2.single.both = apply(dist.pairs.lps2.single.both,1,min)
+dist.pairs.lps24.single.both = matrix(dists.to.cis.lps24.single[edge.all.both], ncol=2, byrow=F)
+dist.edge.lps24.single.both = apply(dist.pairs.lps24.single.both,1,min)
+dist.pairs.unstim.single.both = matrix(dists.to.cis.unstim.single[edge.all.both], ncol=2, byrow=F)
+dist.edge.unstim.single.both = apply(dist.pairs.unstim.single.both,1,min)
 
 dist.edge.all = c(dist.edge.ifn, dist.edge.lps2, dist.edge.lps24,dist.edge.unstim)
 dist.edge.all = c('1st','2nd','3rd','4th','5th')[dist.edge.all+1]
@@ -529,7 +539,71 @@ save(dat.edge.combined.all, file='Monocytes/data/neigh_common_all_singleVSjoint.
 
 
 
-# Look at order of nodes and edges in joint VS single, ALL (different definition of order) -------------------------
+# Make alluvial plot of intersection of edges common in all conditions, single vs joint -----------------------------------------
+
+dist.edge.both = c(dist.edge.ifn.joint.both, dist.edge.lps2.joint.both, dist.edge.lps24.joint.both,dist.edge.unstim.joint.both)
+dist.edge.both[which(dist.edge.both ==Inf)] = 5
+dist.edge.both = c('1st','2nd','3rd','4th','5th','Not a neighbour')[dist.edge.both +1]
+dists.factor.both = factor(dist.edge.both ,levels=c('1st','2nd','3rd','4th','5th', 'Not a neighbour'))
+
+dat.edge.both = data.frame(Neighbour = dists.factor.both,
+                                 Condition= c(rep("IFN-gamma", length(dist.edge.ifn.joint.both)),rep("LPS-2h", length(dist.edge.lps2.joint.both)),
+                                              rep("LPS-24h", length(dist.edge.lps24.joint.both)),rep("Unstim", length(dist.edge.unstim.joint.both))))
+
+dist.edge.single.both = c(dist.edge.ifn.single.both, dist.edge.lps2.single.both, dist.edge.lps24.single.both,dist.edge.unstim.single.both)
+dist.edge.single.both[which(dist.edge.single.both==Inf)] = 5
+dist.edge.single.both = c('1st','2nd','3rd','4th', '5th','Not a neighbour')[dist.edge.single.both+1]
+dists.factor.single.both = factor(dist.edge.single.both,levels=c('1st','2nd','3rd','4th', '5th','Not a neighbour'))
+
+dat.edge.single.both = data.frame(Neighbour = dists.factor.single.both,
+                                     Condition= c(rep("IFN-gamma", length(dist.edge.ifn.single.both)),rep("LPS-2h", length(dist.edge.lps2.single.both)),
+                                                  rep("LPS-24h", length(dist.edge.lps24.single.both)),rep("Unstim", length(dist.edge.unstim.single.both))))
+
+dat.edge.combined.both = rbind(dat.edge.both, dat.edge.single.both)
+dat.edge.combined.both$method = c(rep('jointGHS', nrow(dat.edge.both)),rep('fastGHS', nrow(dat.edge.single.both)))
+
+
+# Must get to the right format
+dat.both.alluv = data.frame(jointGHS=dplyr::filter(dat.edge.combined.both, method=="jointGHS")[,1], fastGHS=dplyr::filter(dat.edge.combined.both, method=="fastGHS")[,1])
+dat.both.alluv$Condition = dat.edge.both$Condition
+df.alluv = plyr::count(dat.both.alluv, c('jointGHS', 'fastGHS', 'Condition'))
+
+pdf("Monocytes/plots/alluvial_commmon_intersection_jointGHS.pdf")
+ggplot2::ggplot(df.alluv,
+       aes(y = freq, axis1 = fastGHS, axis2 = jointGHS)) +
+  geom_alluvium(aes(fill = fastGHS), width = 1/12) +
+  geom_stratum(width = 1/12, fill = "white", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("fastGHS", "jointGHS"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("")+theme_minimal()+facet_wrap(~Condition)
+dev.off()
+
+# Now ALL edges common... (intersection + complement)
+
+# The compliments added to the data frame
+# Must get to the right format
+dat.edge.complement.joint.alluv = data.frame(jointGHS=dplyr::filter(dat.edge.combined, method=="jointGHS")[,1], fastGHS=rep('Not common',length(dplyr::filter(dat.edge.combined, method=="jointGHS")[,1])))
+dat.edge.complement.single.alluv = data.frame(jointGHS=rep('Not common', length(dplyr::filter(dat.edge.combined, method=="fastGHS")[,1])), fastGHS=dplyr::filter(dat.edge.combined, method=="fastGHS")[,1])
+dat.edge.complement.joint.alluv$Condition = dat.edge.all$Condition
+dat.edge.complement.single.alluv$Condition = dat.edge.all.single$Condition
+dat.full.alluv = rbind(dat.both.alluv, dat.edge.complement.joint.alluv,dat.edge.complement.single.alluv)
+df.full.alluv = plyr::count(dat.full.alluv, c('jointGHS', 'fastGHS', 'Condition'))
+
+pdf("Monocytes/plots/alluvial_commmon_all_jointGHS.pdf", 16,16)
+ggplot2::ggplot(df.full.alluv,
+                aes(y = freq, axis1 = fastGHS, axis2 = jointGHS)) +
+  geom_alluvium(aes(fill = fastGHS), width = 1/12) +
+  geom_stratum(width = 1/12, fill = "white", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("fastGHS", "jointGHS"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("")+theme_minimal()+facet_wrap(~Condition)
+dev.off()
+
+
+
+# Look at order of nodes and edges in joint VS single, ALL edges  -------------------------
 
 
 # Nodes in joint

@@ -20,6 +20,12 @@ for(k in 1:length(thetas.est.mono.single)){
   thetas.est.mono.single[[k]][which(abs(thetas.est.mono.single[[k]]) < 1e-5, arr.ind = T)] = 0
 }
 
+# Check edge agreement
+100*round(tailoredGlasso::precision(thetas.est.mono.single[[1]]!=0, thetas.est.mono[[1]]!=0), 3)
+100*round(tailoredGlasso::precision(thetas.est.mono.single[[2]]!=0, thetas.est.mono[[2]]!=0), 3)
+100*round(tailoredGlasso::precision(thetas.est.mono.single[[3]]!=0, thetas.est.mono[[3]]!=0), 3)
+100*round(tailoredGlasso::precision(thetas.est.mono.single[[4]]!=0, thetas.est.mono[[4]]!=0), 3)
+
 # Add information about whether a gene is cis or trans to top hotspot ---------------------------------
 
 top_hotspot = 69757429 # On chromosome 12 (hotspot rs6581889)
@@ -492,6 +498,21 @@ pdf("Monocytes/plots/degreedistributions/combinedplot_with_unflagged_cismarked_s
 dev.off()
 
 
+# And finally, without the unflagged density but with the cis genes degree marked
+
+gg.comb.flag.withcis = gg.comb.flag+
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="IFN-gamma"), aes(x=degs.cis.ifn[1],y=0), colour="orange",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="IFN-gamma"), aes(x=degs.cis.ifn[2],y=0), colour="blue",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="LPS-2h"), aes(x=degs.cis.lps2[1],y=0), colour="orange",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="LPS-2h"), aes(x=degs.cis.lps2[2]+0.2,y=0), colour="blue",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="LPS-24h"), aes(x=degs.cis.lps24[1],y=0), colour="orange",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="LPS-24h"), aes(x=degs.cis.lps24[2],y=0), colour="blue",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="Unstim"), aes(x=degs.cis.unstim[1],y=0), colour="orange",alpha=0.7, show.legend = F) +
+  geom_point(data=dplyr::filter(df.degree.jointGHS.cis, condition=="Unstim"), aes(x=degs.cis.unstim[2],y=0), colour="blue",alpha=0.7, show.legend = F)
+
+pdf("Monocytes/plots/degreedistributions/combinedplot_cismarked_single_vs_jointGHS.pdf", 13, 15)
+((gg.comb.flag.withcis+ggplot2::theme(text = element_text(size = 15))))+(gg.comb.order+ggplot2::theme(text = element_text(size = 15)))
+dev.off()
 
 
 
@@ -1113,6 +1134,55 @@ gridExtra::grid.arrange(gridExtra::arrangeGrob(nets[[1]]+ theme(legend.position=
                                                nets[[3]]+ theme(legend.position="none"), nets[[4]]+ theme(legend.position="none"), ncol=2),
                         legend.ordered, ncol=2, widths=c(8,1))
 dev.off()
+
+
+# Write list of edges to file: -------------------------------------------
+
+# We now write a list of all edges indentified by jointGHS to a .csv file.
+
+get_and_print_edges <- function(a.mat, col.names, theta.mat=NULL) {
+  # Function for printing all the edges in a graph with a layout that can be inserted into a latex table.
+  # Also returns a data frame containing the edges
+  # a.mat:          the adjacency matrix
+  # col.names:      the names of the nodes in the graph
+  # theta.mat:      the precision matrix. If included, the size the partial correlations are included in the table as well
+  a.mat[which(diag(rep(1, ncol(a.mat))) == 1, arr.ind = T)] <- 0 # Make diagonal zero
+  pairs <- which(a.mat[, ] == 1, arr.ind = T)
+  df <- data.frame(t(apply(pairs, 1, sort))) # Sort so that the node in the pair whose name is first in the alphabet is first.
+  df <- unique(df)
+  names <- cbind(col.names[df[, 1]], col.names[df[, 2]])
+  if (!is.null(theta.mat)){
+    effect = round(-cov2cor(theta.mat)[cbind(df[,1], df[,2])], 5)
+    names = cbind(names, effect)
+    return(names)
+  }
+  for (i in 1:nrow(names)) {
+    cat(names[i, 1], " & ", names[i, 2], " \\\\ \n")
+  }
+  return(names)
+}
+
+edges.ifn = get_and_print_edges(thetas.est.mono[[1]]!=0,genes_id, thetas.est.mono[[1]])
+edges.lps2 = get_and_print_edges(thetas.est.mono[[2]]!=0,genes_id, thetas.est.mono[[2]])
+edges.lps24 = get_and_print_edges(thetas.est.mono[[3]]!=0,genes_id, thetas.est.mono[[3]])
+edges.unstim = get_and_print_edges(thetas.est.mono[[4]]!=0,genes_id, thetas.est.mono[[4]])
+colnames(edges.ifn) <- c("Gene1", "Gene2", "PartialCor")
+colnames(edges.lps2) <- c("Gene1", "Gene2", "PartialCor")
+colnames(edges.lps24) <- c("Gene1", "Gene2", "PartialCor")
+colnames(edges.unstim) <- c("Gene1", "Gene2", "PartialCor")
+
+# Write to file
+write.csv(edges.ifn, file = "Monocytes/edge_lists/edgesIFNg.csv", row.names = F,quote=F)
+write.csv(edges.lps2, file = "Monocytes/edge_lists/edgesLps2h.csv", row.names = F,quote=F)
+write.csv(edges.lps24, file = "Monocytes/edge_lists/edgesLps24h.csv", row.names = F,quote=F)
+write.csv(edges.unstim, file = "Monocytes/edge_lists/edgesUnstim.csv", row.names = F,quote=F)
+
+# Write list of node degree for all genes -------------------------------------------
+
+write.csv(df.degree.ifn, file = "Monocytes/Edge_lists/degreesIFNg.csv", row.names = T,quote=F)
+write.csv(df.degree.lps2, file = "Monocytes/Edge_lists/degreesLps2h.csv", row.names = T,quote=F)
+write.csv(df.degree.lps24, file = "Monocytes/Edge_lists/degreesLps24h.csv", row.names = T,quote=F)
+write.csv(df.degree.unstim, file = "Monocytes/Edge_lists/degreesUnstim.csv", row.names = T,quote=F)
 
 
 
