@@ -1177,6 +1177,14 @@ write.csv(edges.lps2, file = "Monocytes/edge_lists/edgesLps2h.csv", row.names = 
 write.csv(edges.lps24, file = "Monocytes/edge_lists/edgesLps24h.csv", row.names = F,quote=F)
 write.csv(edges.unstim, file = "Monocytes/edge_lists/edgesUnstim.csv", row.names = F,quote=F)
 
+# Write to file, pooled
+edges.comb = rbind(edges.ifn, edges.lps2, edges.lps24, edges.unstim)
+edges.comb = cbind(edges.comb,c(rep(condition.names[1], nrow(edges.ifn)), rep(condition.names[2], nrow(edges.lps2)), rep(condition.names[3], nrow(edges.lps24)),
+                   rep(condition.names[4], nrow(edges.unstim))))
+colnames(edges.comb) <- c("Gene1", "Gene2", "PartialCor", "Condition")
+write.csv(edges.comb, file = "Monocytes/edge_lists/edgesComb.csv", row.names = F,quote=F)
+
+
 # Write list of node degree for all genes -------------------------------------------
 
 write.csv(df.degree.ifn, file = "Monocytes/Edge_lists/degreesIFNg.csv", row.names = T,quote=F)
@@ -1184,7 +1192,18 @@ write.csv(df.degree.lps2, file = "Monocytes/Edge_lists/degreesLps2h.csv", row.na
 write.csv(df.degree.lps24, file = "Monocytes/Edge_lists/degreesLps24h.csv", row.names = T,quote=F)
 write.csv(df.degree.unstim, file = "Monocytes/Edge_lists/degreesUnstim.csv", row.names = T,quote=F)
 
+# Write to file for all conditions, pooled
+df.degree.comb = rbind(df.degree.ifn, df.degree.lps2, df.degree.lps24, df.degree.unstim)
+df.degree.comb = cbind(df.degree.comb,c(rep(condition.names[1], p), rep(condition.names[2], p), rep(condition.names[3], p),
+                                        rep(condition.names[4], p)))
+colnames(df.degree.comb) <- c("Gene", "Degree", "Condition")
+write.csv(df.degree.comb, file = "Monocytes/Edge_lists/degreesComb.csv", row.names = T,quote=F)
 
+# Not in long format
+
+df.degree.wide = cbind(sort(df.degree.ifn), sort(df.degree.lps2)$Degree,sort(df.degree.lps24)$Degree,sort(df.degree.unstim)$Degree)
+colnames(df.degree.wide) = c('Gene', condition.names)
+write.csv(df.degree.wide, file = "Monocytes/Edge_lists/degreesCombWide.csv", row.names = F,quote=F)
 
 
 # Investigating particular edges-------------------------------------------------
