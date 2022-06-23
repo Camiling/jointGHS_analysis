@@ -35,6 +35,35 @@ plot.upset = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_rat
 plot.upset.wrapped = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_sets=F, wrap=T, 
                    themes=upset_default_themes(text=element_text(size=15)))
 
+
+# Change order of intersections:
+
+inter.order.grouped = list()
+inter.order.grouped[[1]] = c(combn(condition.names,4))
+comb.3 = combn(condition.names,3)
+order.3 = c(4,1,2,3) # Order manually according to size
+for(k in 1:ncol(comb.3)){
+  #inter.order.grouped[[k+1]] = c(comb.3[,k])
+  inter.order.grouped[[k+1]] = c(comb.3[,order.3[k]])
+}
+comb.2 = combn(condition.names,2)
+order.2 = c(4,3, 2, 1, 6, 5)
+for(k in 1:ncol(comb.2)){
+  inter.order.grouped[[order.2[k]+ncol(comb.3)+1]] = c(comb.2[,k])
+}
+order.1 = c(3, 2, 1, 4)
+for(k in 1:4){
+  inter.order.grouped[[order.1[k]+ncol(comb.3)+ncol(comb.2)+1]] = condition.names[k]
+}
+
+plot.upset.wrapped.ordered = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_intersections=F,sort_sets=F, wrap=T, 
+                                   themes=upset_default_themes(text=element_text(size=15)), intersections=inter.order.grouped)
+
+
+pdf("Monocytes/plots/intersection_jointGHS_ordered.pdf", 14, 7)
+plot.upset.wrapped.ordered
+dev.off()
+
 # With fractions instead (not including for now, as confusing...)
 #plot.upset.frac = upset(dat.edges, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_sets=F, 
 #                        base_annotations=list(
@@ -80,6 +109,7 @@ dev.off()
 
 
 
+
 # Compare intersection of single and joint estimates (at same sparsities) ---------------------------
 
 
@@ -115,6 +145,17 @@ pdf("Monocytes/plots/intersection_withsingle_orderbysize_jointGHS.pdf", 14, 10)
                         ggtitle('jointGHS')+ ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))) #+ plot_layout( heights = c(1,1.1))
 dev.off()
 
+
+# Also with new ordering with largest intersections first
+
+plot.upset.single.ordered = upset(dat.edges.single, names(dat.edges)[1:4], name='condition', width_ratio=0.1,keep_empty_groups=TRUE, max_size=50000, sort_intersections=F,sort_sets=F, wrap=T, 
+                                   themes=upset_default_themes(text=element_text(size=15)), intersections=inter.order.grouped)
+
+
+pdf("Monocytes/plots/intersection_withsingle_ordered_jointGHS.pdf", 14, 10)
+(plot.upset.single.ordered+ggtitle('fastGHS')+ ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5, vjust=0.02)))/(plot.upset.wrapped.ordered+ 
+                                                                                                       ggtitle('jointGHS')+ ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5, vjust=0.02))) 
+dev.off()
 
 # Same plot as first, but marked by whether it's controlled by a hotspot instead--------------------
 
