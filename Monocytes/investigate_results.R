@@ -1,7 +1,7 @@
 rm(list=ls())
 source('utils.R')
-load("Monocytes/data/expression_data_monocytes_and_bcells_LYZ_region.RData")
-load("Monocytes/data/expression_data_monocytes_LYZ_region_FDR_5.RData")
+load("Monocytes/data/expression_data_monocytes_and_bcells_LYZ_region_notOnGit.RData")
+load("Monocytes/data/expression_data_monocytes_LYZ_region_FDR_5_notOnGit.RData")
 load('Monocytes/data/monocytes_jointGHS_smalleps_largeAIC.RData')
 load('Monocytes/data/res_joint_single_samespars.RData')
 
@@ -742,6 +742,18 @@ for(i in 1:length(cis.names)){
   neigh.unstim = genes_id[which(thetas.est.mono[[1]][genes_id==cis.names[i],which(genes_id %in% df.degree.unstim[top.unstim,1])]!=0)]
   cat('LPS2h: ', cis.names[i], ': ', neigh.unstim, '\n')
 }
+#IFN:  LYZ :  ADAMTS4 C1orf210 C21orf24 C21orf55 C5orf28 
+#LPS2h:  LYZ :  ADAMTS4 C19orf12 C1orf151 C21orf24 
+#LPS24h:  LYZ :  ACBD5 C19orf31 C1QA 
+#LPS2h:  LYZ :  ADAMTS4 C15orf63 C19orf31 C1orf151 
+#IFN:  YEATS4 :  AFMID AGTRAP APOBEC3D C19orf12 C1orf210 C9orf116 CATSPER2 CCR6 CDK5RAP2 
+#LPS2h:  YEATS4 :  AFMID AGTRAP C12orf43 C19orf12 C4orf34 CAPS2 CATSPER2 
+#LPS24h:  YEATS4 :  ADAMTS4 AFMID ANKRD30B C15orf63 C19orf31 C4orf34 CAPS2 CATSPER2 CCNB1IP1 
+#LPS2h:  YEATS4 :  AFMID AGTRAP APOBEC3D BMS1P5 C15orf63 C5orf28 C9orf80 CAPS2 CCDC125 
+#IFN:  CREB1 :  ACBD5 
+#LPS2h:  CREB1 :  ACBD5 BATF3 
+#LPS24h:  CREB1 :   
+#  LPS2h:  CREB1 :  ACBD5 
 
 # LYZ has multiple top hubs as neighbours in each condition.
 # YEATS4 has the most.
